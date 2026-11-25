@@ -75,3 +75,4 @@ class Inventory:
                     print(f" • {item}: {count} шт.")
         except Exception as e:
             print(f"[Помилка відображення інвентарю]: {e}")
+            
