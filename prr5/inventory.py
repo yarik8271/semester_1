@@ -1,59 +1,62 @@
 import math
 
 
-class Inventory:
-    def __init__(self, max_slots, max_stack):
-        self.max_slots = max_slots
-        self.max_stack = max_stack
-        self.items = {}  # {"Назва": кількість}
+def count_used_slots(items, max_stack):
+    """Рахує зайняті слоти з урахуванням розміру стака."""
+    try:
+        slots = 0
+        for qty in items.values():
+            slots += math.ceil(qty / max_stack)
+        return slots
+    except Exception as e:
+        print(f"[Помилка підрахунку слотів]: {e}")
+        return 0
 
-    def get_used_slots(self):
-        """Рахує, скільки слотів зайнято."""
-        try:
-            slots = 0
-            for count in self.items.values():
-                slots += math.ceil(count / self.max_stack)
-            return slots
-        except Exception as e:
-            print(f"[Помилка підрахунку слотів]: {e}")
-            return 0
 
-    def add_item(self, item_name, count=1):
-        """Додає предмет в інвентар з урахуванням слотів."""
-        try:
-            current_slots = self.get_used_slots()
-            # Якщо предмета немає і всі слоти зайняті — додати не можна
-            if item_name not in self.items and current_slots >= self.max_slots:
-                print(f"⚠️ Немає вільних слотів для '{item_name}'!")
-                return False
-
-            self.items[item_name] = self.items.get(item_name, 0) + count
-            return True
-        except Exception as e:
-            print(f"[Помилка додавання предмета]: {e}")
+def add_to_inventory(items, item_name, count, max_slots, max_stack):
+    """Додає предмет у словник інвентарю, якщо вистачає слотів."""
+    try:
+        if count <= 0:
             return False
 
-    def remove_item(self, item_name, count=1):
-        """Видаляє предмет з інвентарю."""
-        try:
-            if item_name not in self.items or self.items[item_name] < count:
-                return False
-
-            self.items[item_name] -= count
-            if self.items[item_name] <= 0:
-                del self.items[item_name]
-            return True
-        except Exception as e:
-            print(f"[Помилка видалення предмета]: {e}")
+        used_slots = count_used_slots(items, max_stack)
+        # Якщо предмета ще немає і всі слоти зайняті — додати не можна
+        if item_name not in items and used_slots >= max_slots:
+            print(f"⚠️ Немає вільних слотів для '{item_name}'!")
             return False
 
-    def display(self, title):
-        """Виводить вміст інвентарю."""
-        try:
-            print(f"\n--- {title} (Слоти: {self.get_used_slots()}/{self.max_slots}) ---")
-            if not self.items:
-                print("  (Порожньо)")
-            for item, count in self.items.items():
-                print(f"  • {item}: {count} шт.")
-        except Exception as e:
-            print(f"[Помилка виводу інвентарю]: {e}")
+        items[item_name] = items.get(item_name, 0) + count
+        return True
+    except Exception as e:
+        print(f"[Помилка додавання в інвентар]: {e}")
+        return False
+
+
+def remove_from_inventory(items, item_name, count=1):
+    """Видаляє вказану кількість предмета з інвентарю."""
+    try:
+        if item_name not in items or items[item_name] < count:
+            return False
+
+        items[item_name] -= count
+        if items[item_name] <= 0:
+            del items[item_name]
+        return True
+    except Exception as e:
+        print(f"[Помилка видалення з інвентарю]: {e}")
+        return False
+
+
+def show_inventory(title, items, max_slots, max_stack):
+    """Виводить вміст інвентарю в консоль."""
+    try:
+        used = count_used_slots(items, max_stack)
+        print(f"\n--- {title} (Слоти: {used}/{max_slots}, стак: {max_stack}) ---")
+        if not items:
+            print("  (Порожньо)")
+            return
+        for name, qty in items.items():
+            slots_for_item = math.ceil(qty / max_stack)
+            print(f"  • {name}: {qty} шт. (слотів: {slots_for_item})")
+    except Exception as e:
+        print(f"[Помилка виводу інвентарю]: {e}")

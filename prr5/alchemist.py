@@ -1,67 +1,68 @@
 import random
-from inventory import Inventory
 from database import INGREDIENTS_POOL, POTIONS_POOL
+from inventory_ops import add_to_inventory, remove_from_inventory
 
 
-class Alchemist:
-    def __init__(self):
-        try:
-            self.ingredients_inv = Inventory(max_slots=25, max_stack=25)
-            self.potions_inv = Inventory(max_slots=10, max_stack=10)
-            self.gold = 50
-        except Exception as e:
-            print(f"[Помилка створення алхіміка]: {e}")
+def give_daily_ingredients(ingredients_inv, max_slots=25, max_stack=25):
+    """Видає 5 випадкових інгредієнтів на початок ігрового дня."""
+    try:
+        print("\n🎁 Щоденні інгредієнти (+5):")
+        for _ in range(5):
+            ing = random.choice(INGREDIENTS_POOL)
+            added = add_to_inventory(ingredients_inv, ing, 1, max_slots, max_stack)
+            if added:
+                print(f"  + {ing}")
+    except Exception as e:
+        print(f"[Помилка видачі інгредієнтів]: {e}")
 
-    def get_daily_ingredients(self):
-        """Видає 5 випадкових інгредієнтів щодня."""
-        try:
-            print("\n🎁 Отримано 5 інгредієнтів на день:")
-            for _ in range(5):
-                ing = random.choice(INGREDIENTS_POOL)
-                if self.ingredients_inv.add_item(ing, 1):
-                    print(f"  + {ing}")
-        except Exception as e:
-            print(f"[Помилка отримання інгредієнтів]: {e}")
 
-    def craft_potion(self, potion_name):
-        """Варить зілля, якщо вистачає інгредієнтів."""
-        try:
-            if potion_name not in POTIONS_POOL:
-                print("❌ Такого зілля не існує!")
-                return
+def brew_potion(potion_name, ingredients_inv, potions_inv):
+    """Варить зілля, списує інгредієнти та кладе готове зілля в інвентар."""
+    try:
+        if potion_name not in POTIONS_POOL:
+            print("❌ Такого зілля немає в книзі рецептів.")
+            return False
 
-            recipe = POTIONS_POOL[potion_name]["recipe"]
+        recipe = POTIONS_POOL[potion_name]["recipe"]
 
-            # Перевірка наявності інгредієнтів
-            for ing in recipe:
-                if self.ingredients_inv.items.get(ing, 0) < 1:
-                    print(f"❌ Не вистачає: {ing}")
-                    return
+        # Перевіряємо, чи є потрібні інгредієнти
+        for ing in recipe:
+            if ingredients_inv.get(ing, 0) < 1:
+                print(f"❌ Не вистачає інгредієнта: {ing}")
+                return False
 
-            # Списуємо інгредієнти та додаємо зілля
-            if self.potions_inv.add_item(potion_name, 1):
-                for ing in recipe:
-                    self.ingredients_inv.remove_item(ing, 1)
-                print(f"🧪 Успішно зварено: {potion_name}!")
-        except Exception as e:
-            print(f"[Помилка варіння]: {e}")
+        # Пробуємо покласти зілля (ліміт: 10 слотів, стак по 10)
+        added = add_to_inventory(potions_inv, potion_name, 1, max_slots=10, max_stack=10)
+        if not added:
+            return False
 
-    def sell_potions(self):
-        """Продає все зілля в кінці дня."""
-        try:
-            if not self.potions_inv.items:
-                print("🛒 Немає зілля для продажу.")
-                return 0
+        # Списуємо інгредієнти після успішного додавання зілля
+        for ing in recipe:
+            remove_from_inventory(ingredients_inv, ing, 1)
 
-            earned = 0
-            for name, count in list(self.potions_inv.items.items()):
-                price = POTIONS_POOL[name]["price"] * count
-                earned += price
-                self.potions_inv.remove_item(name, count)
+        print(f"🧪 Зварено: {potion_name}!")
+        return True
+    except Exception as e:
+        print(f"[Помилка варіння зілля]: {e}")
+        return False
 
-            self.gold += earned
-            print(f"💰 Продано зілля на суму: {earned} золота!")
-            return earned
-        except Exception as e:
-            print(f"[Помилка продажу]: {e}")
-            return 0
+
+def sell_all_potions(potions_inv, gold):
+    """Продаж усіх зварених зілля в кінці дня. Повертає новий баланс золота."""
+    try:
+        if not potions_inv:
+            print("🛒 Зілля для продажу немає.")
+            return gold
+
+        earned = 0
+        for potion_name, qty in list(potions_inv.items()):
+            price = POTIONS_POOL[potion_name]["price"]
+            earned += price * qty
+            remove_from_inventory(potions_inv, potion_name, qty)
+
+        new_gold = gold + earned
+        print(f"💰 Продано зілля на {earned} золота. Баланс: {new_gold}")
+        return new_gold
+    except Exception as e:
+        print(f"[Помилка продажу зілля]: {e}")
+        return gold

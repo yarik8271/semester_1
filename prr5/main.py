@@ -1,65 +1,78 @@
-import sys
-from alchemist import Alchemist
 from database import POTIONS_POOL
+from inventory_ops import show_inventory
+from alchemy_ops import give_daily_ingredients, brew_potion, sell_all_potions
 
 
-def main():
+def print_some_recipes(limit=5):
+    """Виводить кілька рецептів для підказки гравцю."""
     try:
-        hero = Alchemist()
+        print(f"\n📜 Перші {limit} рецептів:")
+        for name in list(POTIONS_POOL.keys())[:limit]:
+            ing_text = ", ".join(POTIONS_POOL[name]["recipe"])
+            price = POTIONS_POOL[name]["price"]
+            print(f"  • {name}: [{ing_text}] -> {price} золота")
+    except Exception as e:
+        print(f"[Помилка виводу рецептів]: {e}")
+
+
+def play_game():
+    """Послідовний головний цикл гри."""
+    try:
+        ingredients_inv = {}  # до 25 слотів, стак по 25
+        potions_inv = {}      # до 10 слотів, стак по 10
+        gold = 0
+        target_gold = 500
+        max_days = 10
         day = 1
-        TARGET_GOLD = 500  # Ціль: 500 золота
-        MAX_DAYS = 10  # Ліміт: 10 днів
 
-        print("=== ГРА: АЛХІМІК ===")
-        print(f"Зіберіть {TARGET_GOLD} золота за {MAX_DAYS} днів, щоб виграти!\n")
+        print("=== АЛХІМІК (ВЕРСІЯ БЕЗ КЛАСІВ) ===")
+        print(f"Мета: зібрати {target_gold} золота за {max_days} днів.")
 
-        while day <= MAX_DAYS:
-            print(f"\n📅 --- ДЕНЬ {day}/{MAX_DAYS} ---")
-            print(f"💵 Баланс: {hero.gold}/{TARGET_GOLD} золота")
+        while day <= max_days:
+            print(f"\n================ ДЕНЬ {day}/{max_days} ================")
+            print(f"Золото: {gold}/{target_gold}")
 
-            hero.get_daily_ingredients()
+            # 1. Видача 5 інгредієнтів
+            give_daily_ingredients(ingredients_inv, max_slots=25, max_stack=25)
 
+            # 2. Дії протягом дня
             while True:
                 try:
-                    print("\n1. Інвентар")
-                    print("2. Показати 5 рецептів")
+                    print("\n1. Показати інвентарі")
+                    print("2. Показати рецепти")
                     print("3. Зварити зілля")
-                    print("4. Продати зілля та закінчити день")
-                    print("5. Вийти з гри")
+                    print("4. Завершити день і продати зілля")
 
-                    choice = input("Вибір (1-5): ").strip()
+                    action = input("Оберіть дію (1-4): ").strip()
 
-                    if choice == "1":
-                        hero.ingredients_inv.display("Інгредієнти")
-                        hero.potions_inv.display("Зілля")
-                    elif choice == "2":
-                        print("\n📜 Доступні рецепти (перші 5):")
-                        for name in list(POTIONS_POOL.keys())[:5]:
-                            rec = ", ".join(POTIONS_POOL[name]["recipe"])
-                            price = POTIONS_POOL[name]["price"]
-                            print(f" • {name}: [{rec}] -> Ціна: {price}")
-                    elif choice == "3":
-                        name = input("Введіть назву (наприклад, 'Зілля №1'): ").strip()
-                        hero.craft_potion(name)
-                    elif choice == "4":
-                        hero.sell_potions()
+                    if action == "1":
+                        show_inventory("Інгредієнти", ingredients_inv, max_slots=25, max_stack=25)
+                        show_inventory("Зілля", potions_inv, max_slots=10, max_stack=10)
+                    elif action == "2":
+                        print_some_recipes(5)
+                    elif action == "3":
+                        potion_name = input("Введіть назву зілля (наприклад, Зілля №1): ").strip()
+                        brew_potion(potion_name, ingredients_inv, potions_inv)
+                    elif action == "4":
+                        gold = sell_all_potions(potions_inv, gold)
                         break
-                    elif choice == "5":
-                        sys.exit(0)
+                    else:
+                        print("⚠️ Введіть число від 1 до 4.")
                 except Exception as e:
-                    print(f"[Помилка меню]: {e}")
+                    print(f"[Помилка в меню дня]: {e}")
 
-            # Перевірка умови перемоги
-            if hero.gold >= TARGET_GOLD:
-                print(f"\n🎉 ПЕРЕМОГА! Ви зібрали {hero.gold} золота!")
+            # 3. Перевірка кінцівки (виграш)
+            if gold >= target_gold:
+                print(f"\n🎉 ВИГРАШ! Ви зібрали {gold} золота за {day} дн.!")
                 return
 
             day += 1
 
-        print(f"\n💀 ПОРАЗКА! Дні закінчилися. Ви зібрали лише {hero.gold} золота.")
+        # 4. Логічна кінцівка (програш)
+        print(f"\n💀 ПРОГРАШ! За {max_days} днів зібрано {gold} із {target_gold} золота.")
     except Exception as e:
-        print(f"[Помилка гри]: {e}")
+        print(f"[Критична помилка гри]: {e}")
 
 
 if __name__ == "__main__":
-    main()
+    play_game()
